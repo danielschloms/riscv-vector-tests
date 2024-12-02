@@ -20,10 +20,10 @@
   MODE = machine##
         ##Can be [machine], [virtual] or [user]; for more info, see https://github.com/riscv/riscv-test-env
         ##
-  VLEN = 256##
+  VLEN = 1024##
         ##Can vary from [64] to [4096] (upper boundary is limited by Spike)
         ##
-  XLEN = 64##
+  XLEN = 32##
         ##Can be [32] or [64]; note that we do not support specifying ELEN yet, ELEN is always consistent with XLEN
         ##
   SPLIT = 10000##
@@ -58,17 +58,19 @@ CONFIGS = configs/
 
 SPIKE = spike
 PATCHER_SPIKE = build/pspike
-MARCH = rv${XLEN}gcv_zvbb_zvbc_zfh_zvfh_zvkg_zvkned_zvknha_zvksed_zvksh
+# MARCH = rv${XLEN}gcv_zvbb_zvbc_zfh_zvfh_zvkg_zvkned_zvknha_zvksed_zvksh
+MARCH = rv${XLEN}gv_zve32d_zfhmin
 MABI = lp64d
 
 ifeq ($(XLEN), 32)
-MABI = ilp32f
+# MABI = ilp32f
+MABI = ilp32d
 VARCH = zvl${VLEN}b_zve32f_zfh_zfhmin_zvfh
 else
 VARCH = zvl${VLEN}b_zve64d_zfh_zfhmin_zvfh
 endif
 
-RISCV_PREFIX = riscv64-unknown-elf-
+RISCV_PREFIX = riscv32-unknown-elf-
 RISCV_GCC = $(RISCV_PREFIX)gcc
 RISCV_GCC_OPTS = -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -DENTROPY=0xdeadbeef -DLFSR_BITS=9 -fno-tree-loop-distribute-patterns
 
@@ -105,10 +107,10 @@ build-generator:
 build-merger:
 	go build -o build/merger merger/merger.go
 
-build-patcher-spike: pspike/pspike.cc
-	rm -rf build
-	mkdir -p build
-	g++ -std=c++17 -I$(SPIKE_INSTALL)/include -L$(SPIKE_INSTALL)/lib $< -lriscv -lfesvr -o $(PATCHER_SPIKE)
+# build-patcher-spike: pspike/pspike.cc
+# 	rm -rf build
+# 	mkdir -p build
+# 	g++ -std=c++17 -I$(SPIKE_INSTALL)/include -L$(SPIKE_INSTALL)/lib $< -lriscv -lfesvr -o $(PATCHER_SPIKE)
 
 unittest:
 	go test ./...
@@ -128,12 +130,14 @@ $(tests): %: ${OUTPUT_STAGE1}%.S
 
 tests_patch = $(addsuffix .patch, $(tests))
 
-patching-stage2: build-patcher-spike compile-stage1
+# patching-stage2: build-patcher-spike compile-stage1
+patching-stage2: compile-stage1
 	@mkdir -p ${OUTPUT_STAGE2_PATCH}
-	$(MAKE) $(tests_patch)
 
-$(tests_patch):
-	LD_LIBRARY_PATH=$(SPIKE_INSTALL)/lib ${PATCHER_SPIKE} --isa=${MARCH}_${VARCH} $(PK) ${OUTPUT_STAGE1_BIN}$(shell basename $@ .patch) > ${OUTPUT_STAGE2_PATCH}$@
+# $(MAKE) $(tests_patch)
+
+# $(tests_patch):
+# 	LD_LIBRARY_PATH=$(SPIKE_INSTALL)/lib ${PATCHER_SPIKE} --isa=${MARCH}_${VARCH} $(PK) ${OUTPUT_STAGE1_BIN}$(shell basename $@ .patch) > ${OUTPUT_STAGE2_PATCH}$@
 
 generate-stage2: patching-stage2
 	build/merger -stage1output ${OUTPUT_STAGE1} -stage2output ${OUTPUT_STAGE2} -stage2patch ${OUTPUT_STAGE2_PATCH}
@@ -146,7 +150,8 @@ tests_stage2 = $(addsuffix .stage2, $(tests))
 
 $(tests_stage2):
 	$(RISCV_GCC) -march=${MARCH} -mabi=${MABI} $(RISCV_GCC_OPTS) $(STAGE2_GCC_OPTS) -I$(ENV) -Imacros/general -T$(ENV)/link.ld $(ENV_CSRCS) ${OUTPUT_STAGE2}$(shell basename $@ .stage2).S -o ${OUTPUT_STAGE2_BIN}$(shell basename $@ .stage2)
-	${SPIKE} --isa=${MARCH}_${VARCH} $(PK) ${OUTPUT_STAGE2_BIN}$(shell basename $@ .stage2)
+	
+# ${SPIKE} --isa=${MARCH}_${VARCH} $(PK) ${OUTPUT_STAGE2_BIN}$(shell basename $@ .stage2)
 
 
 clean-out:
