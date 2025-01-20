@@ -25,18 +25,28 @@
 #else
 // Ugly, this currently inlines the correctval in with the code,
 // but this avoids many SLLI/ADDI to generate it from an immediate
+// #define TEST_CASE( testnum, testreg, correctval, code... )	\
+// test_ ## testnum: \
+//     li  TESTNUM, testnum;				   \
+//     code;						   \
+//     la  x7, test_ ## testnum ## _data;			   \
+//     load  x7, 0(x7);					   \
+//     beq testreg, x7, test_ ## testnum ## _success; \
+//     la x7, fail;                                   \
+//     jr x7;                                         \
+// .align 3;					   \
+// test_ ## testnum ## _data:			   \
+//    .quad MASK_XLEN(correctval);			   \
+// test_ ## testnum ## _success:
 #define TEST_CASE( testnum, testreg, correctval, code... )	\
 test_ ## testnum: \
     li  TESTNUM, testnum;				   \
     code;						   \
-    la  x7, test_ ## testnum ## _data;			   \
-    load  x7, 0(x7);					   \
+    li  x7, MASK_XLEN(correctval);			   \
     beq testreg, x7, test_ ## testnum ## _success; \
     la x7, fail;                                   \
     jr x7;                                         \
 .align 3;					   \
-test_ ## testnum ## _data:			   \
-   .quad MASK_XLEN(correctval);			   \
 test_ ## testnum ## _success:
 #endif
 
